@@ -19,15 +19,15 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from bed_reader import open_bed
 
-G = open_bed('data/fourier_ls-chr6-1167_train.bed')
-train_geno = G.read(index=np.s_[:, :])
+# G = open_bed('data/fourier_ls-chr6-1167_train.bed')
+# train_geno = G.read(index=np.s_[:, :])
 
-print(train_geno.shape)
+# print(train_geno.shape)
 
-G = open_bed('data/fourier_ls-chr6-1167_test.bed')
-test_geno = G.read(index=np.s_[:, :])
+# G = open_bed('data/fourier_ls-chr6-1167_test.bed')
+# test_geno = G.read(index=np.s_[:, :])
 
-print(test_geno.shape)
+# print(test_geno.shape)
 
 device = torch.device("cuda:0")
 np.random.seed(1)
@@ -43,35 +43,30 @@ def load(file_name, data_dir):
     data = dataframe.iloc[:, 0].str.split(' ')
     return np.array([np.array(entry) for entry in data])
 
-# data = load(file_name, data_dir)
-# data = data.astype(np.int8)
-train_data = train_geno.astype(np.int8)
-valid_data = test_geno.astype(np.int8)
-# print(data.shape)
+data = load(file_name, data_dir)
+data = data.astype(np.int8)
+# train_data = train_geno.astype(np.int8)
+# valid_data = test_geno.astype(np.int8)
+print(data.shape)
 
-# total_size = len(data)
+total_size = len(data)
 
-# train_size = int(0.8 * total_size)
-# valid_size = int(0.1 * total_size)
-# test_size = total_size - train_size - valid_size
+train_size = int(0.8 * total_size)
+valid_size = total_size - train_size
 
-# indices = np.random.permutation(total_size)
+indices = np.random.permutation(total_size)
 
-# train_indices = indices[:train_size]
-# valid_indices = indices[train_size:train_size + valid_size]
-# test_indices = indices[train_size + valid_size:]
+train_indices = indices[:train_size]
+valid_indices = indices[train_size:]
 
-# train_data = data[train_indices]
-# valid_data = data[valid_indices]
-# test_data = data[test_indices]
+train_data = data[train_indices]
+valid_data = data[valid_indices]
 
 train_data = torch.tensor(train_data, dtype=torch.long)
 valid_data = torch.tensor(valid_data, dtype=torch.long)
-# test_data = torch.tensor(test_data, dtype=torch.long)
 
 print(train_data.shape)
 print(valid_data.shape)
-# print(test_data.shape)
 
 train_loader = DataLoader(
     dataset = TensorDataset(train_data),
@@ -86,9 +81,11 @@ valid_loader = DataLoader(
     drop_last = True
 )
 
+latents = 8192
+
 ns = juice.structures.HCLT(
     train_data.float().to(device),
-    num_latents = 1024,
+    num_latents = latents,
     input_dist=dists.Categorical(num_cats=3)
 )
 
@@ -96,14 +93,6 @@ pc = juice.compile(ns)
 pc.to(device)
 
 num_epochs = 400
-
-optimizer = juice.optim.CircuitOptimizer(pc, lr = 0.05, pseudocount = 0.005, method = "EM")
-scheduler = juice.optim.CircuitScheduler(
-    optimizer,
-    method = "multi_linear",
-    lrs = [0.05, 0.01],
-    milestone_steps = [0, len(train_loader) * num_epochs]
-)
 
 for batch in train_loader:
     x = batch[0].to(device)
@@ -144,59 +133,5 @@ for epoch in range(1, num_epochs+1):
     t2 = time.time()
     print(f"[Epoch {epoch}/{num_epochs}][train LL: {train_ll:.2f}; val LL: {test_ll:.2f}].....[train forward+backward+step {t1-t0:.2f}; val forward {t2-t1:.2f}] ")
 
-juice.save('circuits/ns_chr6-1167-1024.jpc', ns)
-juice.save('circuits/pc_chr6-1167-1024.jpc', pc)
-
-##########################################################################################################################################################################
-
-# from torchmetrics import R2Score
-
-# r2_metric = R2Score().to(device)
-
-# # del data, train_data, valid_data
-# # data = test_data
-# data = torch.tensor(valid_data, dtype=torch.long).to(device)
-
-# num_samples = data.size(0)
-# num_features = data.size(1)
-
-# # acc = np.zeros(num_features)
-# r2s = np.zeros(num_features)
-# for pos in range(num_features):
-#     print(pos)
-#     false_array = torch.full((num_features,), False, dtype=torch.bool).to(device)
-#     # false_array[pos] = False
-#     missing_mask = torch.tensor(false_array).to(device)
-
-#     data0 = data.clone()
-#     data0[:, pos] = 0
-#     lls0 = juice.queries.marginal(pc, data=data0, missing_mask=missing_mask)
-
-#     del data0
-
-#     data1 = data.clone()
-#     data1[:, pos] = 1
-#     lls1 = juice.queries.marginal(pc, data=data1, missing_mask=missing_mask)
-
-#     del data1
-
-#     data2 = data.clone()
-#     data2[:, pos] = 2
-#     lls2 = juice.queries.marginal(pc, data=data2, missing_mask=missing_mask)
-
-#     del data2
-
-#     lls_stack = torch.stack([lls0, lls1, lls2], dim=-1)
-
-#     predictions = torch.argmax(lls_stack, dim=-1).squeeze()
-#     original = data[:, pos]
-
-#     # correct_predictions = (predictions == original).sum().item()
-#     # accuracy = correct_predictions / num_samples
-#     r2_score = r2_metric(predictions, original)
-
-#     # print(accuracy)
-#     print(r2_score)
-
-#     r2s[pos] = r2_score
-#     # acc[pos] = accuracy
+juice.save(f'circuits/ns_10K-{latents}.jpc', ns)
+juice.save(f'circuits/pc_10K-{latents}.jpc', pc)

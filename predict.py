@@ -87,7 +87,6 @@ print(valid_data.shape)
 #     drop_last = True
 # )
 
-device = torch.device("cuda:0")
 ns = juice.load('circuits/pc_chr6-1167-1024.jpc')
 pc = juice.compile(ns)
 pc.to(device)
@@ -106,6 +105,10 @@ pseudolikelihoods = np.zeros(num_samples)
 
 means = torch.mean(valid_data.float(), dim=0).to(device)
 
+num_masked = 1
+
+joints = np.zeros((num_samples, (num_features + num_masked - 1) // num_masked))
+
 i = 1
 batch_start = 0
 for batch in dataloader:
@@ -115,57 +118,48 @@ for batch in dataloader:
 
     batch_end = batch_start + batch_size
 
-    for pos in range(num_features):
+    for pos in range(0, num_features, num_masked):
         print(pos)
+        end_pos = min(pos + num_masked, num_features)
+
         false_array = torch.full((num_features,), False, dtype=torch.bool).to(device)
-        false_array[pos] = True
+        false_array[pos:end_pos] = True
         missing_mask = torch.tensor(false_array).to(device)
 
         lls = juice.queries.conditional(pc, data=data, missing_mask=missing_mask)
-        probs = lls[:, pos:pos+1, :]
 
-        original = data[:, pos]
+        probs = lls[:, pos:end_pos, :]
 
-        # false_array = torch.full((num_features,), False, dtype=torch.bool).to(device)
-        # missing_mask = torch.tensor(false_array).to(device)
+        # print(probs)
+        # print(probs.shape)
 
-        # data0 = data.clone()
-        # data0[:, pos] = 0
-        # lls0 = juice.queries.marginal(pc, data=data0, missing_mask=missing_mask)
-        # print(lls0)
+        for idx, feature_pos in enumerate(range(pos, end_pos)):
+            original = data[:, feature_pos]
 
-        # data1 = data.clone()
-        # data1[:, pos] = 1
-        # lls1 = juice.queries.marginal(pc, data=data1, missing_mask=missing_mask)
-        # print(lls1)
+            prob_0 = probs[:, idx, 0]
+            prob_1 = probs[:, idx, 1]
+            prob_2 = probs[:, idx, 2]
+            expected_counts = prob_0 * 0 + prob_1 * 1 + prob_2 * 2
 
-        # data2 = data.clone()
-        # data2[:, pos] = 2
-        # lls2 = juice.queries.marginal(pc, data=data2, missing_mask=missing_mask)
-        # print(lls2)
+            # max_probs, predictions = torch.max(probs[:, idx:idx+1, :], dim=-1)
+            # predictions = predictions.squeeze()
 
-        # lls_stack = torch.stack([lls0, lls1, lls2], dim=-1)
+            correct_probs = torch.gather(probs[:, idx].squeeze(1), 1, original.unsqueeze(1)).squeeze()
+            log_correct_probs = torch.log(correct_probs)
 
-        # print(lls_stack)
+            pseudolikelihoods[batch_start:batch_end] += log_correct_probs.cpu().numpy()
+            joints[batch_start:batch_end, pos // num_masked] += log_correct_probs.cpu().numpy()
 
-        max_probs, predictions = torch.max(probs, dim=-1)
-        predictions = predictions.T.squeeze()
+            # Calculate the sum of squared errors (SSE) for the current batch
+            sse_batch = torch.sum((original - expected_counts) ** 2).item()
 
-        correct_probs = torch.gather(probs.squeeze(1), 1, original.unsqueeze(1)).squeeze()
-        log_correct_probs = torch.log(correct_probs)
+            # Calculate the total sum of squares (SST) for the current batch
+            sst_batch = torch.sum((original - means[feature_pos]) ** 2).item()
 
-        pseudolikelihoods[batch_start:batch_end] += log_correct_probs.cpu().numpy()
+            # Accumulate SSE and SST for the current feature
+            sse_acc[feature_pos] += sse_batch
+            sst_acc[feature_pos] += sst_batch
 
-        # Calculate the sum of squared errors (SSE) for the current batch
-        sse_batch = torch.sum((original - predictions) ** 2).item()
-
-        # Calculate the total sum of squares (SST) for the current batch
-        sst_batch = torch.sum((original - means[pos]) ** 2).item()
-
-        # Accumulate SSE and SST for the current feature
-        sse_acc[pos] += sse_batch
-        sst_acc[pos] += sst_batch
-    
     batch_start = batch_end
     i += 1
     
@@ -176,5 +170,9 @@ r2s = 1 - (sse_acc / sst_acc)
 print("R2 scores:", r2s)
 print("Pseudolikelihoods:", pseudolikelihoods)
 
-# np.savetxt('results/r2s_chr6-1167-1024', r2s)
-np.savetxt('results/pseudolikelihoods_chr6-1167-1024', pseudolikelihoods)
+df = pd.DataFrame(joints)
+df.to_csv(f'results/joints_mask{num_masked}_chr6-1167-1024.csv', index=False, header=False)
+
+# np.savetxt('results/r2s_chr6-1167-1024_correct', r2s)
+np.savetxt(f'results/r2s_mask{num_masked}_chr6-1167-1024_correct', r2s)
+# np.savetxt(f'results/pseudolikelihoods_mask{num_masked}_chr6-1167-1024', pseudolikelihoods)

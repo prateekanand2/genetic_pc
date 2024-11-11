@@ -99,7 +99,9 @@ def process_plink_data_with_drop(plink_file_prefix, rs_ids):
         '-m', '0.03125'
     ])
 
-def extract_imputed_genotype_array(vcf_file, target_snp, correct_genotype_array, num_samples):
+def extract_imputed_genotype_array(vcf_file, snp_set, correct_genotype_array, num_samples):
+    results = {}
+    
     with open(vcf_file, 'r') as file:
         lines = file.readlines()
         
@@ -110,15 +112,19 @@ def extract_imputed_genotype_array(vcf_file, target_snp, correct_genotype_array,
             fields = line.strip().split('\t')
             snp_id = f"{fields[0]}:{fields[1]}"  # Format: chr:pos
             
-            if snp_id == target_snp:
-                genotype_data = fields[9:]  # Genotype fields for all samples
+            if snp_id in snp_set:
+                c = correct_genotype_array[snp_id]
+
+                genotype_data = fields[9:]
                 genotype_array = []
+                expected_counts = []
+                probs = np.zeros(num_samples)
                 log_probs = np.zeros(num_samples)
                 log_probs_filtered = np.zeros(num_samples)
 
-                # Parse genotype data
                 for i, genotype in enumerate(genotype_data):
                     gt_info, _, gp_info = genotype.split(':')
+                    
                     # Convert genotype format to 0, 1, or 2
                     if gt_info == "0|0":
                         genotype_array.append(0)
@@ -127,25 +133,33 @@ def extract_imputed_genotype_array(vcf_file, target_snp, correct_genotype_array,
                     elif gt_info == "1|1":
                         genotype_array.append(2)
                     else:
-                        genotype_array.append(-1)  # for missing or unknown genotypes
+                        genotype_array.append(-1)
 
                     prob_values = list(map(float, gp_info.split(',')))
-                    correct = correct_genotype_array[i]
+                    prob_0 = prob_values[0]
+                    prob_1 = prob_values[1]
+                    prob_2 = prob_values[2]
+                    expected_count = prob_0 * 0 + prob_1 * 1 + prob_2 * 2
+                    expected_counts.append(expected_count)
+
+                    correct = c[i]
+                    probs[i] = prob_values[correct]
                     if prob_values[correct] != 0:
                         log_probs[i] = math.log(prob_values[correct])
                         log_probs_filtered[i] = math.log(prob_values[correct])
                     else:
                         prob_values = np.array(prob_values) + 0.0001
-                        prob_values /= (np.sum(prob_values))
+                        prob_values /= np.sum(prob_values)
                         log_probs[i] = math.log(prob_values[correct])
                         log_probs_filtered[i] = 1
-                
-                return genotype_array, log_probs, log_probs_filtered
-    
-    return None, None  # SNP not found in the VCF file
+
+                results[snp_id] = (genotype_array, expected_counts, probs, log_probs, log_probs_filtered)
+
+    return results
 
 
-def extract_test_genotype_array(vcf_file, target_snp):
+def extract_test_genotype_array(vcf_file, snp_set):
+    results = {}
 
     with open(vcf_file, 'r') as file:
         lines = file.readlines()
@@ -157,13 +171,11 @@ def extract_test_genotype_array(vcf_file, target_snp):
             fields = line.strip().split('\t')
             snp_id = f"{fields[0]}:{fields[1]}"  # Format: chr:pos
             
-            if snp_id == target_snp:
-                genotype_data = fields[9:]  # Genotype fields for all samples
+            if snp_id in snp_set:
+                genotype_data = fields[9:]
                 genotype_array = []
 
-                # Parse genotype data
                 for genotype in genotype_data:
-                    # Convert genotype format to 0, 1, or 2
                     if genotype == "0/0":
                         genotype_array.append(0)
                     elif genotype == "0/1" or genotype == "1/0":
@@ -171,13 +183,26 @@ def extract_test_genotype_array(vcf_file, target_snp):
                     elif genotype == "1/1":
                         genotype_array.append(2)
                     else:
-                        genotype_array.append(-1)  # for missing or unknown genotypes
-                
-                return genotype_array
-    
-    return None  # SNP not found in the VCF file
+                        genotype_array.append(-1)
+
+                results[snp_id] = genotype_array
+
+    return results 
 
 def compute_r_squared(array1, array2):
+    array1 = np.array(array1)
+    array2 = np.array(array2)
+    
+    mean_array1 = np.mean(array1)
+    
+    sse = np.sum((array1 - array2) ** 2)
+    sst = np.sum((array1 - mean_array1) ** 2)
+
+    r_squared = 1 - (sse / sst)
+    
+    return r_squared
+
+def compute_r_squared_old(array1, array2):
     # Ensure both arrays are NumPy arrays
     array1 = np.array(array1)
     array2 = np.array(array2)
@@ -235,17 +260,28 @@ r2s = np.zeros(num_snps)
 pseudolikelihoods = np.zeros(num_samples)
 pseudolikelihoods_filtered = np.zeros((num_samples, num_snps))
 
-for idx, rs_id in enumerate(rs_ids):
-    print(f"Dropping SNP: {rs_id} (#{idx+1})")
-    num = int(rs_id.split(':')[1])
+# for idx, rs_id in enumerate(rs_ids):
+#     print(f"Dropping SNP: {rs_id} (#{idx+1})")
+#     num = int(rs_id.split(':')[1])
 
-    i = num
-    j = num + 1
-    if num == idx2:
-        i = idx2 - 1
-        j = idx2
+batch_size = 1  # Define batch size for SNPs to drop in each iteration
 
-    process_plink_data_with_drop(plink_file_test_prefix, rs_id)
+joints = np.zeros((num_samples, (num_snps + batch_size - 1) // batch_size))
+
+for batch_idx in range(0, len(rs_ids), batch_size):
+    snp_set = rs_ids[batch_idx:batch_idx + batch_size]
+    print(f"Dropping SNP set: {snp_set}")
+
+    i = int(rs_ids[batch_idx].split(':')[1])
+    j = int(rs_ids[min(batch_idx + batch_size, len(rs_ids)) - 1].split(':')[1])
+
+    if i == j:
+        j += 1
+        if j == (idx2+1):
+            i -= 1
+            j -= 1
+
+    process_plink_data_with_drop(plink_file_test_prefix, snp_set)
     
     result = subprocess.run([
         '../impute5_v1.2.0/impute5_v1.2.0_static',
@@ -254,18 +290,56 @@ for idx, rs_id in enumerate(rs_ids):
         '--g', 'modified_test_xcf.bcf',
         '--r', f"6:{i}-{j}",
         '--buffer-region', buffer_region,
-        '--o', f"imputed_{idx}.vcf",
-        '--l', f"imputed_{idx}.log",
+        '--o', f"imputed_{batch_idx}.vcf",
+        '--l', f"imputed_{batch_idx}.log",
         '--threads', '32'
     ])
     
-    test_genotype_array = extract_test_genotype_array('data/fourier_ls-chr6-1167_test.vcf', rs_id)
-    imputed_genotype_array, log_probs, log_probs_filtered = extract_imputed_genotype_array(f'imputed_{idx}.vcf', rs_id, test_genotype_array, num_samples)
+    test_arrays = extract_test_genotype_array('data/fourier_ls-chr6-1167_test.vcf', snp_set)
+    results = extract_imputed_genotype_array(f'imputed_{batch_idx}.vcf', snp_set, test_arrays, num_samples)
 
-    r2 = compute_r_squared(imputed_genotype_array, test_genotype_array)
-    print(r2)
+    for a, snp in enumerate(snp_set):
+        test_genotype_array = test_arrays[snp]
+        imputed_genotype_array = results[snp][0]
+        expected_counts = results[snp][1]
+        probs = results[snp][2]
+        log_probs = results[snp][3]
+        log_probs_filtered = results[snp][4]
 
-    # def find_genotype_mismatches(truth_array, prediction_array, missing_value=-1):
+        # print(test_genotype_array)
+        # print(probs)
+        # r2_prev = compute_r_squared(test_genotype_array, imputed_genotype_array)
+        r2 = compute_r_squared(test_genotype_array, expected_counts)
+        # print(r2_prev)
+        print(r2)
+
+        snp_index = batch_idx + a
+        r2s[snp_index] = r2
+        pseudolikelihoods += log_probs
+        pseudolikelihoods_filtered[:, snp_index] = log_probs_filtered
+
+        joints[:, batch_idx // batch_size] += log_probs
+
+    # Delete the generated files after the SNP is processed
+    files_to_delete = [f"imputed_{batch_idx}.log", f"imputed_{batch_idx}.vcf", "modified_test_AC.bcf", "modified_test_AC.bcf.csi", "modified_test_xcf.bcf", "modified_test_xcf.bcf.csi", "modified_test_xcf.bin", "modified_test_xcf.fam", "modified_test.bcf", "modified_test.vcf"]
+    for file in files_to_delete:
+        if os.path.exists(file):
+            os.remove(file)
+        else:
+            print(f"File {file} not found for deletion")
+
+    print(r2s)
+    print(pseudolikelihoods)
+
+df = pd.DataFrame(joints)
+df.to_csv(f'results/joints_mask{batch_size}_chr6-1167_impute5.csv', index=False, header=False)
+
+# df = pd.DataFrame(pseudolikelihoods_filtered)
+# df.to_csv(f'results/pseudolikelihoods_mask{batch_size}_filtered_impute5.csv', index=False, header=False)
+# np.savetxt(f'results/pseudolikelihoods_mask{batch_size}_chr6-1167_impute5', pseudolikelihoods)
+np.savetxt(f'results/r2s_mask{batch_size}_chr6-1167_impute5_correct', r2s)
+
+# def find_genotype_mismatches(truth_array, prediction_array, missing_value=-1):
     #     truth_array = np.array(truth_array)
     #     prediction_array = np.array(prediction_array)
         
@@ -279,20 +353,3 @@ for idx, rs_id in enumerate(rs_ids):
     #     print(np.sum(valid_positions))
 
     # find_genotype_mismatches(test_genotype_array, imputed_genotype_array)
-
-    r2s[idx] = r2
-    pseudolikelihoods += log_probs
-    pseudolikelihoods_filtered[:, idx] = log_probs_filtered
-
-    # Delete the generated files after the SNP is processed
-    files_to_delete = [f"imputed_{idx}.log", f"imputed_{idx}.vcf", "modified_test_AC.bcf", "modified_test_AC.bcf.csi", "modified_test_xcf.bcf", "modified_test_xcf.bcf.csi", "modified_test_xcf.bin", "modified_test_xcf.fam", "modified_test.bcf", "modified_test.vcf"]
-    for file in files_to_delete:
-        if os.path.exists(file):
-            os.remove(file)
-        else:
-            print(f"File {file} not found for deletion")
-
-# df = pd.DataFrame(pseudolikelihoods_filtered)
-# df.to_csv('results/pseudolikelihoods_filtered_impute5.csv', index=False, header=False)
-np.savetxt('results/pseudolikelihoods_chr6-1167_impute5', pseudolikelihoods)
-# np.savetxt('results/r2s_chr6-1167_impute5', r2s)
