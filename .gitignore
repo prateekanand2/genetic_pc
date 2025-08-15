@@ -1,3 +1,14 @@
-data/
-results/
-circuits/
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# Ignore VS Code settings
+.vscode/
+
+# Ignore environment folders
+venv/
+.env
+
+# Ignore files
+*.npz
+*.bz2
