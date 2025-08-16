@@ -10,5 +10,5 @@ This repository is still being modified. In general, the Impute5 pipeline should
 
 ```bash
 # Clone the repository
-git clone [https://github.com/username/repo-name.git](https://github.com/prateekanand2/genetic_pc.git)
+git clone https://github.com/prateekanand2/genetic_pc.git
 
