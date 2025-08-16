@@ -20,3 +20,6 @@ results/1KG/8020/wgan/output_dir
 results/1KG/aats/wgan/output_dir
 results/1KG/afr/wgan/output_dir
 results/1KG/noneur/wgan/output_dir
+
+results/UKBB
+aux/UKBB*
