@@ -12,3 +12,11 @@ venv/
 # Ignore files
 *.npz
 *.bz2
+*.h5
+*.jpc
+*PADDED.hapt
+
+results/1KG/8020/wgan/output_dir
+results/1KG/aats/wgan/output_dir
+results/1KG/afr/wgan/output_dir
+results/1KG/noneur/wgan/output_dir
