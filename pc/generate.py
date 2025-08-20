@@ -19,12 +19,13 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from bed_reader import open_bed
 import gc
+from tqdm import tqdm
 
 split = "8020"
-snps = f"1KG_{split}_4006"
-latents = 128
+snps = f"805_{split}_4006"
+latents = 16
 ps = 0.005
-num_epochs = 5000
+num_epochs = 100
 
 print("Number of CUDA devices:", torch.cuda.device_count())
 print(torch.version.cuda)
@@ -35,24 +36,27 @@ np.random.seed(1)
 print(device)
 print(os.getenv("TRITON_CACHE_DIR"))
 
-ns = juice.load(f'/scratch2/prateek/genetic_pc/reproduce_final/UKBB/{split}/hclt/pc_{snps}-{latents}_{num_epochs}epochs_ps{ps}.jpc')
+ns = juice.load(f'demo/pc_{snps}-{latents}_{num_epochs}epochs_ps{ps}.jpc')
 pc = juice.compile(ns)
 pc.to(device)
 
-print(ns.num_parameters())
+print(f"Num. params: {ns.num_parameters()}")
 
 samples = []
-for i in range(50):
-    print(i)
-    s = juice.queries.sample(pc, num_samples = 100)
+
+# First 50 iterations of 100 samples each
+for i in tqdm(range(50), desc="Sampling 100s"):
+    s = juice.queries.sample(pc, num_samples=100)
     for x in s.cpu():
         samples.append(x)
 
-s = juice.queries.sample(pc, num_samples = 8)
-for x in s.cpu():
+# Final 8 samples
+for x in tqdm(juice.queries.sample(pc, num_samples=8).cpu(), desc="Sampling final 8"):
     samples.append(x)
 
+# Convert to numpy
 np_arrays = [tensor.numpy() for tensor in samples]
 d = np.vstack(np_arrays)
 
-np.savetxt(f'../../reproduce_final/UKBB/{split}/hclt/{snps}_SNP_HCLT_AG_{latents}_{num_epochs}epochs_ps{ps}.txt', d, fmt='%d')
+# Save
+np.savetxt(f'demo/{snps}_SNP_HCLT_AG_{latents}_{num_epochs}epochs_ps{ps}.txt', d, fmt='%d')
