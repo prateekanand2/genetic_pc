@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 import importlib
 import os
-os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+# os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 import sys
 import matplotlib.pyplot as plt
@@ -53,7 +53,7 @@ def vcf_to_haplotype_array(vcf_file):
 print("Number of CUDA devices:", torch.cuda.device_count())
 print(torch.version.cuda)
 
-device = torch.device("cuda:1")
+device = torch.device("cuda")
 np.random.seed(1)
 
 print(device)
@@ -94,7 +94,7 @@ def run_r2_on_data_with_mask(valid_data_tensor, pc_model, mask_indices_file):
         missing_mask[mask_indices] = True
 
         # Query conditional distribution for all missing features simultaneously
-        with torch.cuda.device("cuda:1"):
+        with torch.cuda.device("cuda"):
             lls = juice.queries.conditional(pc_model, data=data, missing_mask=missing_mask)
         # shape: [batch_size, num_missing, 2]
         probs = lls[:, :, :]
@@ -141,6 +141,30 @@ valid_data = np.loadtxt(base_data_path, dtype=np.int8, delimiter=' ')
 valid_data_tensor = torch.tensor(valid_data, dtype=torch.long)
 
 _, r2_base = run_r2_on_data_with_mask(valid_data_tensor, pc_model, mask_file)
+
+# # Use a safe batch size
+# B = 8  # >= 4
+# data = valid_data_tensor[:B].to(device)
+
+# num_features = data.size(1)
+# missing_mask = torch.zeros(num_features, dtype=torch.bool, device=device)
+# missing_mask[mask_indices] = True
+
+# # Warm-up
+# _ = juice.queries.conditional(pc_model, data=data, missing_mask=missing_mask)
+# torch.cuda.synchronize()
+
+# # Timed
+# t0 = time.perf_counter()
+# _ = juice.queries.conditional(pc_model, data=data, missing_mask=missing_mask)
+# torch.cuda.synchronize()
+# t1 = time.perf_counter()
+
+# per_sample_ms = (t1 - t0) * 1e3 / B
+# print(f"Per-sample imputation time ≈ {per_sample_ms:.3f} ms")
+# # ---------------------------------------
+
+# sys.exit(0)
 
 # === Step 2: Compute bootstrap R2s ===
 bootstrap_dir = '/scratch2/prateek/genetic_pc_github/results/b38/8020/data/test_bootstraps'

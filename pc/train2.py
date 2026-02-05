@@ -39,15 +39,15 @@ def vcf_to_haplotype_array(vcf_file):
     # Return as-is (rows = SNPs, columns = samples)
     return haplotype_array.T
 
-snps = "14670"
+snps = "10K"
 amt = 4006
-data = "b38"
+data = "1KG"
 split = "8020"
 
 latents = 128
 ps = 0.005
 num_epochs = 5000
-batch_size = 128
+batch_size = 256
 
 
 print("Number of CUDA devices:", torch.cuda.device_count())

@@ -52,8 +52,8 @@ def create_vcf_from_legend_scalable(
                     raise ValueError("SNP count mismatch")
 
                 for i, a in enumerate(alleles):
-                    snp_files[i].write(f"\t{a}|{a}")
-                    # snp_files[i].write(f"\t{a}")
+                    # snp_files[i].write(f"\t{a}|{a}")
+                    snp_files[i].write(f"\t{a}")
 
                 num_samples += 1
                 if num_samples % block_flush == 0:
@@ -102,11 +102,11 @@ def create_vcf_from_legend_scalable(
 # -----------------------------
 # Same invocation pattern as before
 # -----------------------------
-file = "/scratch2/prateek/DeepLearningImputation/data/UKBB/wes/train_filtered_no_mono"
+file = "/scratch2/prateek/DeepLearningImputation/data/UKBB/wes/test_filtered_no_mono_mac10"
 
 hap_file = f"{file}.txt"
 vcf_file = f"{file}.vcf"
-snp_legend_file = "/scratch2/prateek/DeepLearningImputation/data/UKBB/wes/chr22_wes_no_mono_SNP.legend"
+snp_legend_file = "/scratch2/prateek/DeepLearningImputation/data/UKBB/wes/chr22_wes_no_mono_mac10_SNP.legend"
 
 create_vcf_from_legend_scalable(
     hap_file,

@@ -135,6 +135,34 @@ pc_path = '../results/1KG/8020/hclt/pc_10K_8020_nooverlap_4006-128_5000epochs_ps
 pc_model = juice.compile(juice.load(pc_path))
 pc_model.to(device)
 
+# # === Time a single conditional query (one SNP masked) ===
+# print("Timing single conditional query...")
+
+# # Load one batch of data
+# base_data_path = '../results/1KG/8020/data/8020_test.txt'
+# valid_data = np.loadtxt(base_data_path, dtype=np.int8, delimiter=' ')
+# valid_data_tensor = torch.tensor(valid_data, dtype=torch.long)
+
+# data = valid_data_tensor[:512].to(device)  # one batch
+
+# num_features = data.size(1)
+# missing_mask = torch.zeros(num_features, dtype=torch.bool, device=device)
+# missing_mask[0] = True  # mask exactly one SNP
+
+# # Warm-up
+# _ = juice.queries.conditional(pc_model, data=data, missing_mask=missing_mask)
+# torch.cuda.synchronize()
+
+# # Timed run
+# t0 = time.perf_counter()
+# _ = juice.queries.conditional(pc_model, data=data, missing_mask=missing_mask)
+# torch.cuda.synchronize()
+# t1 = time.perf_counter()
+
+# print(f"Single conditional query time (1 SNP, batch=512): {(t1 - t0)*1e3:.3f} ms")
+
+# sys.exit(0)
+
 # === Step 1: Compute base R2 ===
 print("Computing base R2...")
 base_data_path = '../results/1KG/8020/data/8020_test.txt'

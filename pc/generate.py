@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 import importlib
 import os
-os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+# os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 import sys
 import matplotlib.pyplot as plt
@@ -45,6 +45,20 @@ print(f"Num. params: {ns.num_parameters()}")
 
 samples = []
 
+# # ---- Time one AG sample ----
+# # Warm-up (important for CUDA)
+# _ = juice.queries.sample(pc, num_samples=1)
+# torch.cuda.synchronize()
+
+# t0 = time.perf_counter()
+# _ = juice.queries.sample(pc, num_samples=1)
+# torch.cuda.synchronize()
+# t1 = time.perf_counter()
+
+# print(f"Time per AG sample: {(t1 - t0)*1e3:.3f} ms")
+
+# sys.exit(0)
+
 # First 50 iterations of 100 samples each
 for i in tqdm(range(50), desc="Sampling 100s"):
     s = juice.queries.sample(pc, num_samples=100)
@@ -60,4 +74,4 @@ np_arrays = [tensor.numpy() for tensor in samples]
 d = np.vstack(np_arrays)
 
 # Save
-np.savetxt(f'/scratch2/prateek/genetic_pc_github/results/{data}/{split}/hclt/{data}_hclt_{split}_samples_2.txt', d, fmt='%d')
+# np.savetxt(f'/scratch2/prateek/genetic_pc_github/results/{data}/{split}/hclt/{data}_hclt_{split}_samples_2.txt', d, fmt='%d')
