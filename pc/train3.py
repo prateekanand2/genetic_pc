@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import numpy as np
 import os
+import sys
 # os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 def vcf_to_haplotype_array(vcf_file):
@@ -40,9 +41,10 @@ def vcf_to_haplotype_array(vcf_file):
     return haplotype_array.T
 
 snps = "ukbb"
-amt = 21540
+amt = 21538
 data = "UKBB"
 split = "8020"
+chrom = sys.argv[1]
 
 latents = 128
 ps = 0.005
@@ -58,8 +60,8 @@ np.random.seed(1)
 
 print(device)
 
-train_data = np.loadtxt(f"../results/{data}/{split}/data/{split}_train.txt", dtype=np.int8, delimiter=' ')
-valid_data = np.loadtxt(f"../results/{data}/{split}/data/{split}_test.txt", dtype=np.int8, delimiter=' ')
+train_data = np.loadtxt(f"../results/{data}/{split}/data/other_chrs/{chrom}_train.txt", dtype=np.int8, delimiter=' ')
+valid_data = np.loadtxt(f"../results/{data}/{split}/data/other_chrs/{chrom}_test.txt", dtype=np.int8, delimiter=' ')
 
 train_data = torch.tensor(train_data, dtype=torch.long)
 valid_data = torch.tensor(valid_data, dtype=torch.long)
@@ -94,7 +96,7 @@ with torch.cuda.device(pc.device):
         lls = pc(x, record_cudagraph = True)
         lls.mean().backward()
 
-    log_filename = f"../results/{data}/{split}/hclt/{snps}_{split}_{amt}_{latents}_{num_epochs}epochs_ps{ps}_timing.log"
+    log_filename = f"../results/{data}/{split}/hclt/{snps}_{split}_{chrom}_{amt}_{latents}_{num_epochs}epochs_ps{ps}_timing.log"
     with open(log_filename, "w") as log_file:
         # ---- Start total training timer ----
         torch.cuda.synchronize()
@@ -135,8 +137,8 @@ with torch.cuda.device(pc.device):
             log_file.write(log_line + "\n")  # Save to log file
             log_file.flush()  # Ensure logs are written in real-time
 
-            # if epoch % 5000 == 0:
-            #     juice.save(f'../results/{data}/{split}/hclt/pc_{snps}_{split}_{amt}-{latents}_{epoch}epochs_ps{ps}_2.jpc', pc)
+            if epoch % 2000 == 0:
+                juice.save(f'../results/{data}/{split}/hclt/pc_{snps}_{split}_{chrom}_{amt}-{latents}_{epoch}epochs_ps{ps}.jpc', pc)
         # ---- End total training timer ----
         torch.cuda.synchronize()
         train_end_time = time.perf_counter()
