@@ -226,7 +226,7 @@ def run_impute_eval(train_vcf, test_vcf, masked_snps, chrnum, temp_dir, threads)
         IMPUTE5,
         "--h", train_ac,
         "--g", test_ac,
-        "--m", f"{GMAP}/chr{chrnum}.b37.gmap.gz",
+        # "--m", f"{GMAP}/chr{chrnum}.b37.gmap.gz",
         "--r", region,
         "--buffer-region", region,
         "--o", imputed_vcf,

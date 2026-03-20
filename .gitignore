@@ -25,6 +25,7 @@ results/b38/8020/wgan/output_dir
 
 results/UKBB
 aux/UKBB*
+aux/chr*
 
 pc/demo/data/500000_train.txt
 

@@ -182,7 +182,7 @@ def run_imputation_and_eval(test_vcf, snp_indices, rs_ids, chrnum,
     subprocess.run([
         '/scratch2/prateek/impute5_v1.2.0/impute5_v1.2.0_static',
         '--h', f'{train_prefix}_AC.bcf',
-        '--m', f'/scratch2/prateek/b37_recombination_maps/chr{chrnum}.b38.gmap.gz',
+        # '--m', f'/scratch2/prateek/b37_recombination_maps/chr{chrnum}.b38.gmap.gz',
         '--g', f'{temp_dir}/modified_test_AC.bcf',
         '--r', region,
         '--buffer-region', region,
