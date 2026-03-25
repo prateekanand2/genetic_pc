@@ -37,11 +37,20 @@ np.random.seed(1)
 print(device)
 print(os.getenv("TRITON_CACHE_DIR"))
 
-ns = juice.load(f'/scratch2/prateek/genetic_pc_github/results/{data}/{split}/hclt/pc_{snps}-{latents}_{num_epochs}epochs_ps{ps}_2.jpc')
+# ns = juice.load(f'/scratch2/prateek/genetic_pc_github/results/{data}/{split}/hclt/pc_{snps}-{latents}_{num_epochs}epochs_ps{ps}_2.jpc')
+ns = juice.load('/scratch2/prateek/genetic_pc_github/results/1KG/8020/hclt/pc_10K_8020_nooverlap_4006-128_5000epochs_ps0.005.jpc')
 pc = juice.compile(ns)
 pc.to(device)
 
 print(f"Num. params: {ns.num_parameters()}")
+
+count = 0
+for layer in pc.input_layer_group:
+    count += layer.params.numel()
+
+print(count)
+
+pc.print_statistics()
 
 samples = []
 
