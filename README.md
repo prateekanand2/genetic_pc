@@ -1,4 +1,4 @@
-# GPC: Deep generative model of genetic variation data improves imputation accuracy in private populations
+# GPC: An expressive and tractable deep generative model for genetic variation data
 
 Official repository for artificial genome generation and imputation using GPC.
 
