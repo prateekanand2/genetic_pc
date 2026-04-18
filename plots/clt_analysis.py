@@ -614,4 +614,92 @@ plt.close(fig_h)
 print("Saved: clt_tree_hubs.pdf")
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 10. SLIDES VARIANT — degree distribution with consistent palette + big text
+#     Colors match allcolpal: GPC/CLT = "blue", HMM = "purple"
+# ─────────────────────────────────────────────────────────────────────────────
+
+CLT_COLOR_SL = "blue"    # matches GPC in allcolpal
+HMM_COLOR_SL = "purple"  # matches HMM in allcolpal
+
+FONTSIZE_SL_LABEL  = 18
+FONTSIZE_SL_TICK   = 15
+FONTSIZE_SL_LEGEND = 15
+
+fig_sl, ax_sl = plt.subplots(figsize=(7, 5))
+ax_sl.bar(x_pos - width/2, hmm_counts, width, color=HMM_COLOR_SL,
+          label="HMM (chain)", edgecolor="white", linewidth=0.5, alpha=0.85)
+ax_sl.bar(x_pos + width/2, clt_counts, width, color=CLT_COLOR_SL,
+          label="GPC (Chow-Liu tree)", edgecolor="white", linewidth=0.5)
+
+ax_sl.set_xticks(x_pos)
+ax_sl.set_xticklabels(tick_labels, fontsize=FONTSIZE_SL_TICK)
+ax_sl.tick_params(axis="y", labelsize=FONTSIZE_SL_TICK)
+ax_sl.set_xlabel("Degree", fontsize=FONTSIZE_SL_LABEL)
+ax_sl.set_ylabel("Number of SNPs", fontsize=FONTSIZE_SL_LABEL)
+ax_sl.legend(frameon=False, fontsize=FONTSIZE_SL_LEGEND)
+
+fig_sl.tight_layout()
+fig_sl.savefig("clt_degree_distribution_slides.pdf", **PDF_KWARGS)
+plt.close(fig_sl)
+print("\nSaved: clt_degree_distribution_slides.pdf")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 11. SLIDES VARIANT — compact tree with bigger colorbar + bigger SNP labels
+# ─────────────────────────────────────────────────────────────────────────────
+
+LABEL_BBOX_SL = dict(boxstyle="round,pad=0.55", fc="white", ec="#888888",
+                     lw=1.2, alpha=0.95)
+LABEL_FONTSIZE_SL = 14
+
+lc_c_sl = LineCollection(c_segs, linewidths=0.55, colors=c_colors, alpha=0.75, zorder=1)
+
+fig_csl, ax_csl = plt.subplots(figsize=(14, 14), dpi=150)
+ax_csl.set_aspect("equal")
+ax_csl.axis("off")
+ax_csl.add_collection(lc_c_sl)
+
+ax_csl.scatter(xy_c[mask_low_c, 0], xy_c[mask_low_c, 1],
+               s=1.2, c="#c8c8c8", linewidths=0, zorder=2, alpha=0.4)
+ax_csl.scatter(xy_c[mask_hub_c, 0], xy_c[mask_hub_c, 1],
+               s=np.clip(hub_sizes_c, 5, 80),
+               c=orig_deg[mask_hub_c], cmap="Blues",
+               vmin=3, vmax=orig_deg.max(),
+               linewidths=0.3, edgecolors="#555555", zorder=3)
+
+sm_csl = plt.cm.ScalarMappable(cmap=edge_cmap, norm=edge_norm)
+sm_csl.set_array([])
+cb_csl = fig_csl.colorbar(sm_csl, ax=ax_csl, orientation="horizontal",
+                           shrink=0.65, pad=0.03, aspect=18)
+cb_csl.set_label("SNP distance (log scale)", fontsize=22)
+cb_csl.ax.tick_params(labelsize=20)
+cb_csl.ax.xaxis.label.set_size(22)
+
+for node in top_hubs:
+    if node not in pos_c:
+        continue
+    x0, y0 = pos_c[node]
+    r = np.hypot(x0, y0)
+    label = f"SNP {node}\ndeg {degrees[node]}"
+    if r < 1e-9:
+        ax_csl.annotate(label, xy=(x0, y0), xytext=(3, 3),
+                        textcoords="offset points",
+                        fontsize=LABEL_FONTSIZE_SL, fontweight="bold",
+                        color="#111111", ha="left", va="bottom",
+                        bbox=LABEL_BBOX_SL)
+    else:
+        dx, dy = x0 / r, y0 / r
+        push = max(r * 0.12, 0.05)
+        ax_csl.text(x0 + dx * push, y0 + dy * push, label,
+                    fontsize=LABEL_FONTSIZE_SL, ha="center", va="center",
+                    color="#111111", fontweight="bold", bbox=LABEL_BBOX_SL)
+
+ax_csl.autoscale()
+fig_csl.tight_layout()
+fig_csl.savefig("clt_tree_compact_slides.pdf", **PDF_KWARGS)
+plt.close(fig_csl)
+print("Saved: clt_tree_compact_slides.pdf")
+
+
 print("\nDone.")
