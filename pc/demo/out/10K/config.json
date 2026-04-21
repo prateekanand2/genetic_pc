@@ -1,0 +1,16 @@
+{
+  "data": "10K_full.txt",
+  "output_dir": "runs/demo",
+  "val_frac": 0.1,
+  "test_frac": 0.1,
+  "latents": 128,
+  "epochs": 2000,
+  "patience": 100,
+  "batch_size": 256,
+  "pseudocount": 0.005,
+  "seed": 1,
+  "n_snps": 10000,
+  "n_train": 4008,
+  "n_val": 500,
+  "n_test": 500
+}

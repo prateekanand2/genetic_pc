@@ -1,0 +1,17 @@
+============================================================
+CLT SUMMARY
+============================================================
+  SNPs (nodes)                   : 1000
+  Edges                          : 999
+  Degree — max                   : 15   (node 762)
+  Degree — mean                  : 1.998
+  Degree — median                : 2.0
+  Leaf nodes (deg=1)             : 482   [chain has exactly 2]
+  Degree-2 nodes (chain-like)    : 272   [chain has K-2 = 998]
+  Hub nodes (deg >= 5)           : 50
+
+  Edge index gaps — max          : 946
+  Edge index gaps — mean         : 129.77
+  Edges with gap > K/10          : 351 / 999  (35.1%)
+  Edges with gap == 1 (adjacent) : 39   [ALL edges in an HMM]
+============================================================

@@ -1,65 +1,63 @@
-import pyjuice as juice
+"""
+generate_demo.py — Sample artificial haplotypes from a trained GPC.
+
+Example:
+    python3 generate_demo.py --run-dir out/1K --num-samples 5008 --seed 1
+"""
+
+
+import argparse
+from pathlib import Path
+
+import numpy as np
 import torch
-# import torchvision
-import time
-from torch.utils.data import TensorDataset, DataLoader
-import pyjuice.nodes.distributions as dists
-import numpy as np
-import pandas as pd
-
-import seaborn as sns
-import pandas as pd
-import numpy as np
-import importlib
-import os
-os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-
-import sys
-import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA
-from bed_reader import open_bed
-import gc
 from tqdm import tqdm
 
-snps = "805"
-amt = 4006
-data = "1KG"
-split = "8020"
+import pyjuice as juice
 
-latents = 16
-ps = 0.005
-num_epochs = 100
 
-print("Number of CUDA devices:", torch.cuda.device_count())
-print(torch.version.cuda)
+def parse_args():
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--run-dir", type=str, default="out/1K",
+                   help="Directory produced by train_demo.py (contains gpc_best.jpc)")
+    p.add_argument("--checkpoint", type=str, default=None,
+                   help="Override path to the .jpc file (default: <run-dir>/gpc_best.jpc)")
+    p.add_argument("--output", type=str, default=None,
+                   help="Output .txt path (default: <run-dir>/samples.txt)")
+    p.add_argument("--num-samples", type=int, default=5008)
+    p.add_argument("--batch-size", type=int, default=500)
+    p.add_argument("--seed", type=int, default=1)
+    return p.parse_args()
 
-device = torch.device("cuda")
-np.random.seed(1)
 
-print(device)
-print(os.getenv("TRITON_CACHE_DIR"))
+def main():
+    args = parse_args()
+    run_dir = Path(args.run_dir)
+    ckpt = Path(args.checkpoint) if args.checkpoint else run_dir / "gpc_best.jpc"
+    out_path = Path(args.output) if args.output else run_dir / "samples.txt"
 
-ns = juice.load(f'pc_{snps}_{split}_{amt}-{latents}_{num_epochs}epochs_ps{ps}.jpc')
-pc = juice.compile(ns)
-pc.to(device)
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Device: {device}  |  Loading {ckpt}")
 
-print(f"Num. params: {ns.num_parameters()}")
+    pc = juice.compile(juice.load(str(ckpt))).to(device)
 
-samples = []
+    batches = []
+    remaining = args.num_samples
+    pbar = tqdm(total=args.num_samples, desc="Sampling")
+    while remaining > 0:
+        k = min(args.batch_size, remaining)
+        s = juice.queries.sample(pc, num_samples=k).cpu().numpy()
+        batches.append(s)
+        remaining -= k
+        pbar.update(k)
+    pbar.close()
 
-# First 50 iterations of 100 samples each
-for i in tqdm(range(50), desc="Sampling 100s"):
-    s = juice.queries.sample(pc, num_samples=100)
-    for x in s.cpu():
-        samples.append(x)
+    samples = np.vstack(batches).astype(np.int8)
+    np.savetxt(out_path, samples, fmt="%d")
+    print(f"Saved {samples.shape[0]} x {samples.shape[1]} samples to {out_path}")
 
-# Final 8 samples
-for x in tqdm(juice.queries.sample(pc, num_samples=8).cpu(), desc="Sampling final 8"):
-    samples.append(x)
 
-# Convert to numpy
-np_arrays = [tensor.numpy() for tensor in samples]
-d = np.vstack(np_arrays)
-
-# Save
-np.savetxt(f'{snps}_{split}_{amt}-{latents}_{num_epochs}epochs_ps{ps}_samples.txt', d, fmt='%d')
+if __name__ == "__main__":
+    main()
