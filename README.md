@@ -4,7 +4,7 @@
   <img src="assets/clt_tree.png" alt="Chow-Liu tree backbone of a GPC trained on 1000 Genomes SNPs" width="400">
 </p>
 
-**GPC** (Genetic Probabilistic Circuit) is a tractable deep generative model for haplotype data. It supports exact likelihood evaluation, exact marginalisation, and fast conditional queries — so the *same* trained model can generate artificial genomes, impute missing SNPs, and be audited for privacy without retraining.
+**GPC** (Genetic Probabilistic Circuit) is a tractable deep generative model for haplotype data. It supports exact likelihood evaluation, exact marginalization, and fast conditional queries. The same trained model can generate artificial genomes and impute missing SNPs with improved privacy properties.
 
 Preprint: [GPC: An expressive and tractable deep generative model for genetic variation data (bioRxiv, 2026)](https://www.biorxiv.org/content/10.1101/2023.05.16.541036v3).
 
