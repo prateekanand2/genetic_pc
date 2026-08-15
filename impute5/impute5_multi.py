@@ -43,6 +43,13 @@ def parse_args():
         "--info_file", type=str, required=True,
         help="Path to file containing MAF or SNP info for annotation."
     )
+    parser.add_argument(
+        "--bootstrap_dir", type=str, default=None, required=False,
+        help="Directory holding bootstrap replicate VCFs. Defaults to "
+             "<dirname(--test)>/test_bootstraps. Set this when --test is a subset "
+             "of the usual test set, so the replicates resample that subset rather "
+             "than the full one."
+    )
 
     return parser.parse_args()
 
@@ -221,9 +228,10 @@ def main():
 
     # Bootstraps
     bootstrap_r2s = []
-    base_dir = os.path.dirname(args.test)
+    boot_dir = args.bootstrap_dir or os.path.join(os.path.dirname(args.test), "test_bootstraps")
+    print(f"Using bootstrap replicates from {boot_dir}")
     for i in range(1, 11):
-        boot_vcf = os.path.join(base_dir, f"test_bootstraps/bootstrap_{i}.vcf")
+        boot_vcf = os.path.join(boot_dir, f"bootstrap_{i}.vcf")
         if not os.path.exists(boot_vcf):
             continue  # Skip if bootstrap file does not exist
         boot_prefix = os.path.splitext(boot_vcf)[0]

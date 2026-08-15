@@ -1,0 +1,133 @@
+{
+  "generated": "2026-08-14T22:21:58.133623+00:00",
+  "host": "karmeliet",
+  "gpu": "NVIDIA RTX A5000",
+  "gpus_used": 1,
+  "device_occupancy": {
+    "cuda_visible_devices": "0",
+    "physical_gpu_index": 0,
+    "physical_gpu_uuid": "GPU-976c8bc1-c74b-73c2-c42e-c6cdc25daa85",
+    "others": [],
+    "exclusive": true
+  },
+  "torch": "2.6.0+cu124",
+  "cuda": "12.4",
+  "python": "3.9.18",
+  "base_data": "results/b38/8020/data/8020_train.txt",
+  "data_source": "real",
+  "real_matrix_limits": {
+    "N": 4006,
+    "M": 14670
+  },
+  "haplotype_subsampling": {
+    "scheme": "random, nested, fixed seed",
+    "seed": 0,
+    "snps": "contiguous from the start of the region"
+  },
+  "n_grid": [
+    500,
+    1000,
+    2000,
+    4006
+  ],
+  "m_grid": [
+    2047,
+    4095
+  ],
+  "warmup_epochs": 2,
+  "measured_epochs": 5,
+  "m_grid_rationale": "M must satisfy M = latent_size*2**12 - 1 for the WGAN generator's fixed six-block upsampling stack; these three values are also real SNPs from the 14,670-SNP high-coverage region, so no zero-padding is needed and every method sees identical data.",
+  "measurement": "median seconds per epoch over the measured epochs after warmup, and peak torch CUDA memory. Epoch counts differ across methods and are not comparable, so total time is reported as per-epoch x each method's own epoch count.",
+  "epochs": {
+    "gpc": {
+      "epochs": 5000,
+      "source": "this work (Section 4.4)"
+    },
+    "hmm": {
+      "epochs": 5000,
+      "source": "this work, matched to GPC"
+    },
+    "rbm": {
+      "epochs": 100000,
+      "source": "the 1KG 8020 run reported in this work, whose saved weights are RBMTrainingGene10K_8020_OOELearning_Nh2000_lr0.001_l20.0_Rdm_NGibbs50_100000epochs.h5, i.e. 100,000 epochs at 50 Gibbs steps. This matches the upstream default in TrainingGene10K2.py. Yelmen et al. 2023 fix the epoch count a posteriori and do not report it. In practice the count was retuned per subset: the generated-output filenames in the RBM directory record 100,000 epochs / 50 Gibbs steps (full and 50/50 splits), 20,000 / 1000 (1KG 8020), 10,000 / 40 (AFR), and 30,000 / 4000 (non-EUR); the saved UKBB weights use 50 Gibbs steps",
+      "variants": {
+        "full,5050": [
+          100000,
+          50
+        ],
+        "1KG 8020": [
+          20000,
+          1000
+        ],
+        "afr": [
+          10000,
+          40
+        ],
+        "noneur": [
+          30000,
+          4000
+        ],
+        "UKBB 8020": [
+          null,
+          50
+        ]
+      }
+    },
+    "wgan": {
+      "epochs": 2001,
+      "source": "main_WGAN.py; Yelmen et al. 2023 stop on visual PCA overlap and do not report a count"
+    }
+  },
+  "configurations": {
+    "gpc": {
+      "structure": "HCLT",
+      "num_latents": 128,
+      "pseudocount": 0.005,
+      "pseudocount_reference_batch": 256,
+      "batch_size": 128,
+      "em": "full-batch EM (step_size=1.0)",
+      "library": "PyJuice"
+    },
+    "hmm": {
+      "structure": "chain (non-homogeneous)",
+      "num_latents": 128,
+      "pseudocount": 0.005,
+      "pseudocount_reference_batch": 256,
+      "batch_size": 256,
+      "em": "full-batch EM (step_size=1.0)",
+      "library": "PyJuice",
+      "chunk_width": 2445,
+      "note": "a chain over a whole region cannot be compiled as one circuit at these sizes -- the layer-by-layer graph build exhausts the C stack -- so it is trained as contiguous chunks, as in the imputation experiments. Timing is therefore reported per chunk of 2,445 SNPs, and a region of M SNPs needs ceil(M/2445) of them. GPC compiles as a single circuit over the same M, which is why its row is per model."
+    },
+    "rbm": {
+      "num_hidden": 2000,
+      "learning_rate": 0.001,
+      "l2": 0.0,
+      "gibbs_steps": 50,
+      "minibatch": 1252,
+      "num_permanent_chains": 1252,
+      "centered_updates": true,
+      "out_of_equilibrium": true,
+      "note": "the defaults of the authors' own training script (TrainingGene10K.py): Nh=2000, lr=0.001, l2=0, NGibbs=50, nMB=nNeg=1252. Only the 1KG African subset was tuned away from these (lr 0.01, NGibbs 40, nMB=nNeg=1000, 10,000 epochs), after consulting the authors. Per-epoch cost is close to linear in the Gibbs-step count, so the step count is recorded alongside it."
+    },
+    "wgan": {
+      "epochs_per_critic": 10,
+      "batch_size": 120,
+      "channels": 10,
+      "noise_dim": 2,
+      "pack_m": 3,
+      "alpha_leakyrelu": 0.01,
+      "g_lr": 0.0005,
+      "d_lr": 0.0005,
+      "betas": [
+        0.5,
+        0.9
+      ],
+      "latent_depth_factor": 12,
+      "label_noise": true,
+      "gpus_used_originally": 2,
+      "gpus_used_here": 1,
+      "note": "run on a single GPU here for comparability; the published runs used two via DataParallel"
+    }
+  }
+}

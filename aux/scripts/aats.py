@@ -88,6 +88,7 @@ DATASET_CONFIGS = {
             'HCLT': f'{BASE}/1KG/aats/hclt/10K_hclt_aats_samples.txt',
             'RBM':  f'{BASE}/1KG/aats/rbm/10K_rbm_aats_samples.txt',
             'WGAN': f'{BASE}/1KG/aats/wgan/10K_wgan_aats_samples.txt',
+            'HMM':  f'{BASE}/1KG/aats/hmm/10K_hmm_aats_samples.txt',
         },
     },
     'UKBB': {
@@ -98,6 +99,7 @@ DATASET_CONFIGS = {
             'HCLT': f'{BASE}/UKBB/aats/hclt/UKBB_hclt_aats_samples.txt',
             'RBM':  f'{BASE}/UKBB/aats/rbm/UKBB_rbm_aats_samples.txt',
             'WGAN': f'{BASE}/UKBB/aats/wgan/UKBB_wgan_aats_samples.txt',
+            'HMM':  f'{BASE}/UKBB/aats/hmm/UKBB_hmm_aats_samples.txt',
         },
     },
 }
